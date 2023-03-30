@@ -88,6 +88,17 @@ html {
   object-fit: cover;
 }
 
+.chat-room__img-back {
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #294042;
+  text-align: center;
+  line-height: 4.2rem;
+  font-size: 2.4rem;
+}
+
 .chat-room__img img {
   width: 100%;
   height: 100%;
@@ -157,7 +168,7 @@ html {
 .dashboard-top {
   background-color: #2d2e40;
   position: fixed;
-  width: 100%;
+  width: 80%;
   z-index: 1;
 }
 

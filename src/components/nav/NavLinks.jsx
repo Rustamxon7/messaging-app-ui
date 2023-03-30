@@ -10,6 +10,8 @@ import { ActionCableContext } from '../..';
 import { useSelector } from 'react-redux';
 import ReactTimeAgo from 'react-time-ago';
 import Loading from '../UI/Loading';
+import Button from '../UI/Button';
+import ImageComponent from '../UI/Image';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
@@ -17,6 +19,11 @@ const NavLinks = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [channel, setChannel] = useState(null);
   const [newChatRoom, setNewChatRoom] = useState(false);
+  const [activeChatRoom, setActiveChatRoom] = useState(null);
+
+  const [loading, setLoading] = useState(false);
+
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const imgRef = useRef();
   const titleRef = useRef();
@@ -37,9 +44,32 @@ const NavLinks = () => {
       {
         received: (data) => {
           setReceivedData(data);
-
+          console.log(data);
           if (data.status === 'new_message') {
             setRecentChatRoomMessage(data);
+          } else if (data.status === 'created') {
+            if (data.user_id === currentUser.id) {
+              setNewChatRoom(true);
+            }
+
+            async function fetchChatRooms() {
+              if (data.image !== null) {
+                const response = await data.image.url;
+
+                if (response !== null) {
+                  setChatRooms((chatRooms) => [...chatRooms, data]);
+                }
+              }
+            }
+
+            fetchChatRooms();
+          } else if (data.status === 'deleted') {
+            setChatRooms((chatRooms) =>
+              chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
+            );
+            if (activeChatRoom === data.id) {
+              navigate('/');
+            }
           }
         },
       }
@@ -75,6 +105,9 @@ const NavLinks = () => {
       setChatRooms((chatRooms) =>
         chatRooms.filter((chatRoom) => chatRoom.id !== receivedData.id)
       );
+      if (activeChatRoom === receivedData.id) {
+        navigate('/');
+      }
     }
   }, [receivedData.status]);
 
@@ -102,9 +135,11 @@ const NavLinks = () => {
   }, [chatRoomsContainer, receivedData]);
 
   const fetchChatRooms = async () => {
+    setLoading(true);
     const response = await chatRoomsApi.getChatRooms();
     const data = await response.data;
     setChatRooms(data);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -115,22 +150,25 @@ const NavLinks = () => {
     localStorage.setItem('chatRooms', JSON.stringify(chatRooms));
   };
 
-  const [loading, setLoading] = useState(false);
-
   const handleChatRoomSubmit = async (e) => {
     e.preventDefault();
-
-    setLoading(true);
 
     const formData = new FormData();
     formData.append('image', imgRef.current.files[0]);
     formData.append('title', titleRef.current.value);
 
-    const response = await chatRoomsApi.createChatRoom(formData);
-    const data = await response.data;
-    setChatRooms((chatRooms) => [...chatRooms, data]);
+    const respond = await chatRoomsApi.createChatRoom(formData);
+    const data = await respond.data;
 
-    setLoading(false);
+    channel.send({
+      status: 'created',
+      ...data,
+    });
+
+    // clear form and input
+    e.target.reset();
+    imgRef.current.value = '';
+    titleRef.current.value = '';
   };
 
   const handleDelete = (chatRoomId) => () => {
@@ -139,20 +177,34 @@ const NavLinks = () => {
       status: 'deleted',
     });
 
-    setChatRooms(chatRooms.filter((chatRoom) => chatRoom.id !== chatRoomId));
-    navigate('/');
+    if (activeChatRoom === chatRoomId) {
+      navigate('/');
+    }
   };
 
   const fetchAllUsers = async () => {
+    setLoading(true);
     const response = await usersApi.getUsers();
     const data = await response.data;
     setAllUsers(data.filter((user) => user.id !== currentUser.id));
+    setLoading(false);
   };
 
-  const fetchUser = async (userId) => {
+  const fetchUser = async (userId, username) => {
     const response = await usersApi.getUser(userId);
     const data = await response.data;
-    setNewChatRoom(true);
+
+    console.log(data);
+
+    const privateChat = await {
+      id: data.id,
+      title: username,
+      is_private: data.is_private,
+      status: 'created',
+    };
+
+    setChatRooms((chatRooms) => [...chatRooms, privateChat]);
+
     return data;
   };
 
@@ -163,8 +215,8 @@ const NavLinks = () => {
   return (
     <nav className='sidenav'>
       <div className='sidenav-profile'>
-        <h2> {currentUser.username}</h2>
-        <img src={currentUser.avatar} alt='' className='sidenav-profile__img' />
+        {/* <h2> {currentUser.username}</h2>
+        <img src={currentUser.avatar} alt='' className='sidenav-profile__img' /> */}
       </div>
       <div className='chat-rooms' id='chatRooms'>
         {isLoading ? (
@@ -178,8 +230,19 @@ const NavLinks = () => {
                 isActive ? 'chat-room active' : 'chat-room'
               }
               key={chatRoom.id}
+              onClick={() => setActiveChatRoom(chatRoom.id)}
             >
-              <img src={chatRoom.image.url} alt='' className='chat-room__img' />
+              {chatRoom.image ? (
+                <ImageComponent
+                  src={chatRoom.image.url}
+                  className='chat-room__img'
+                  chatRoomTitle={chatRoom.title}
+                />
+              ) : (
+                <span className='chat-room__img-back'>
+                  {chatRoom.title.substring(0, 1)}
+                </span>
+              )}
 
               <div className='chat-room__info'>
                 <p className='chat-room__name'>
@@ -214,19 +277,13 @@ const NavLinks = () => {
         {allUsers.map((user) => (
           <div className='chat-room' key={user.id}>
             {user.username}
-            <button
-              onClick={() => {
-                fetchUser(user.id);
-              }}
-            >
-              chat
-            </button>
 
-            {user.online ? (
-              <p style={{ color: 'green' }}>online</p>
-            ) : (
-              <p>offline</p>
-            )}
+            <Button
+              children={'chat'}
+              onClick={() => {
+                fetchUser(user.id, user.username);
+              }}
+            />
           </div>
         ))}
       </div>

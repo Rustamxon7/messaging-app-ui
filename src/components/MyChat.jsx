@@ -24,11 +24,13 @@ function MyChat() {
   const [receivedData, setReceivedData] = useState({});
   const [chatRoomUsers, setChatRoomUsers] = useState([]);
   const [currentlyTyping, setCurrentlyTyping] = useState([]);
+  const [currentChatRoom, setCurrentChatRoom] = useState({});
 
   useEffect(() => {
     const channel = cable.subscriptions.create({
       channel: 'MessagesChannel',
       id,
+      current_user_id: currentUser.id,
     });
 
     setChannel(channel);
@@ -54,12 +56,35 @@ function MyChat() {
       channel.received = (data) => {
         setReceivedData(data);
 
+        console.log(data);
+
         if (data.status === `subscribed_to_${id}`) {
+          console.count('subscribed');
           setIsPrivate(data.is_private);
+          setCurrentChatRoom(data);
         }
       };
     }
-  }, [channel, id]);
+    // else {
+    //   cable.subscriptions.create(
+    //     {
+    //       channel: 'MessagesChannel',
+    //       id,
+    //     },
+    //     {
+    //       received: (data) => {
+    //         setReceivedData(data);
+
+    //         console.log(data);
+
+    //         if (data.status === `subscribed_to_${id}`) {
+    //           setIsPrivate(data.is_private);
+    //         }
+    //       },
+    //     }
+    //   );
+    // }
+  }, [cable.subscriptions, channel, id]);
 
   useEffect(() => {
     if (receivedData.status === 'typing') {
@@ -249,6 +274,7 @@ function MyChat() {
   return (
     <section className='dashboard'>
       <ChatNav
+        chatRoom={currentChatRoom}
         chatRoomUsers={chatRoomUsers}
         isPrivate={isPrivate}
         isUserMember={isUserMember}
