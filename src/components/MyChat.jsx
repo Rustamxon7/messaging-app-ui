@@ -1,14 +1,18 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { useSelector } from 'react-redux';
+import Moment from 'react-moment';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ActionCableContext } from '..';
 import chatRoomsApi from '../api/chatRooms';
 import ChatNav from './ChatNav';
 import Form from './Form';
+import Loading, { Breathing } from './UI/Loading';
+import audio from '../assets/noti.mp3';
+import Message from './Message';
 
 function MyChat() {
   const currentUser = useSelector((state) => state.auth.currentUser);
-  const messagesContainer = document.querySelector('.chat');
+  const messagesContainer = document.querySelector('.chat-messages');
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -55,8 +59,6 @@ function MyChat() {
     if (channel) {
       channel.received = (data) => {
         setReceivedData(data);
-
-        console.log(data);
 
         if (data.status === `subscribed_to_${id}`) {
           console.count('subscribed');
@@ -106,7 +108,6 @@ function MyChat() {
     // ----------------------------
 
     if (receivedData.status === `created`) {
-      saveToLocalStorage(receivedData);
       setMessages((messages) => [...messages, receivedData]);
     } else if (receivedData.status === `deleted`) {
       setMessages((messages) =>
@@ -182,7 +183,6 @@ function MyChat() {
   };
 
   const saveToLocalStorage = (messages) => {
-    // do not reset old messages just add new ones
     const chatRooms = JSON.parse(localStorage.getItem(`chatRooms`));
 
     if (chatRooms) {
@@ -199,10 +199,13 @@ function MyChat() {
       localStorage.setItem(`chatRooms`, JSON.stringify(updatedChatRooms));
     }
   };
+  const [loading, setLoading] = useState(false);
 
   const fetchMessages = async (id) => {
+    setLoading(true);
     const response = await chatRoomsApi.getChatRoomMessages(id);
     setMessages(response.data);
+    setLoading(false);
   };
 
   const handleDelete = (chatRoomId, messageId) => async () => {
@@ -283,46 +286,29 @@ function MyChat() {
         id={id}
         currentlyTyping={currentlyTyping}
       />
+      <div></div>
 
       <div className='dashboard-bottom'>
-        <div></div>
-        <div className='chat'>
-          {messages.map((message) => (
-            <div
-              className={`chat__message ${
-                message.user_id === currentUser.id ? 'me' : 'their'
-              }`}
-            >
-              <div
-                className={`chat__message-info ${
-                  message.user_id === currentUser.id ? 'me' : 'their'
-                }`}
-              >
-                <img
-                  src={message.avatar}
-                  alt=''
-                  className='chat__message-img'
-                />
-
-                <div className='chat__message-box'>
-                  <p className='chat__message-text'>{message.body}</p>
-                  <p className='chat__message-time'>
-                    {message.created_at.slice(11, 16)}
-                  </p>
-                </div>
-
-                <div onClick={handleDelete(id, message.id)}>
-                  <ion-icon
-                    name='trash-outline'
-                    className='chat__message-delete'
-                  ></ion-icon>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <Breathing className='chat-messages' />
+        ) : (
+          <div className='chat-messages'>
+            {messages.map((message) => (
+              <Message
+                key={message.id}
+                message={message}
+                username={message.username}
+                user_id={message.user_id}
+                avatar={message.avatar}
+                currentUser={currentUser}
+                handleDelete={handleDelete}
+                prevMessage={messages[messages.indexOf(message) - 1]}
+              />
+            ))}
+          </div>
+        )}
       </div>
-
+      <div></div>
       <Form
         isPrivate={isPrivate}
         setIsPrivate={setIsPrivate}

@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { gsap } from 'gsap';
+import './Loading.css';
 
 import spinner from '../../assets/spinner.svg';
 
@@ -47,6 +48,16 @@ export function Spinner() {
   return (
     <div className='create-overlay__icon'>
       <img src={spinner} alt='spinner' />
+    </div>
+  );
+}
+
+export function Breathing() {
+  return (
+    <div className='container'>
+      <div className='outerring'>
+        <div className='innerring'></div>
+      </div>
     </div>
   );
 }

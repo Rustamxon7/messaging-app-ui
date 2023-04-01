@@ -12,6 +12,7 @@ import ReactTimeAgo from 'react-time-ago';
 import Loading from '../UI/Loading';
 import Button from '../UI/Button';
 import ImageComponent from '../UI/Image';
+import audio from '../../assets/noti.mp3';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
@@ -38,16 +39,25 @@ const NavLinks = () => {
 
   const navigate = useNavigate();
 
+  const playSound = (notification) => {
+    const audio = new Audio(notification);
+    audio.play();
+  };
+
   useEffect(() => {
     const channel = cable.subscriptions.create(
       { channel: 'ChatRoomsChannel' },
       {
         received: (data) => {
           setReceivedData(data);
-          console.log(data);
           if (data.status === 'new_message') {
             setRecentChatRoomMessage(data);
+            if (data.user_id !== currentUser.id) {
+              playSound(audio);
+            }
           } else if (data.status === 'created') {
+            setChatRooms((chatRooms) => [...chatRooms, data]);
+
             if (data.user_id === currentUser.id) {
               setNewChatRoom(true);
             }
@@ -63,13 +73,6 @@ const NavLinks = () => {
             }
 
             fetchChatRooms();
-          } else if (data.status === 'deleted') {
-            setChatRooms((chatRooms) =>
-              chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
-            );
-            if (activeChatRoom === data.id) {
-              navigate('/');
-            }
           }
         },
       }
@@ -80,7 +83,7 @@ const NavLinks = () => {
     return () => {
       channel.unsubscribe();
     };
-  }, [cable.subscriptions]);
+  }, [cable.subscriptions, activeChatRoom, currentUser.id, navigate]);
 
   useEffect(() => {
     if (recentChatRoomMessage.status === 'new_message') {
@@ -91,6 +94,7 @@ const NavLinks = () => {
               ...chatRoom,
               last_message: recentChatRoomMessage.body,
               last_message_at: recentChatRoomMessage.created_at,
+              username: recentChatRoomMessage.username,
             };
           } else {
             return chatRoom;
@@ -105,11 +109,17 @@ const NavLinks = () => {
       setChatRooms((chatRooms) =>
         chatRooms.filter((chatRoom) => chatRoom.id !== receivedData.id)
       );
+
+      console.log(
+        'activeChatRoom', activeChatRoom,
+        'receivedData.id', receivedData.id
+      );
+
       if (activeChatRoom === receivedData.id) {
         navigate('/');
       }
     }
-  }, [receivedData.status]);
+  }, [activeChatRoom, navigate, receivedData.id, receivedData.status]);
 
   useEffect(() => {
     const chatRooms = JSON.parse(localStorage.getItem('chatRooms'));
@@ -249,9 +259,14 @@ const NavLinks = () => {
                   {chatRoom.title || chatRoom.username}
                 </p>
                 <p className='chat-room__last-message'>
-                  {chatRoom.last_message
-                    ? chatRoom.last_message.substring(0, 5) + '...'
-                    : 'No messages'}
+                  {chatRoom.last_message ? (
+                    <span>
+                      {chatRoom.username} :{' '}
+                      {chatRoom.last_message.substring(0, 5) + '...'}
+                    </span>
+                  ) : (
+                    'No messages'
+                  )}
                 </p>
                 <p>{chatRoom.messages_count}</p>
               </div>
