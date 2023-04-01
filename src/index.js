@@ -26,6 +26,17 @@ CableApp.cable = actionCable.createConsumer(
 );
 export const ActionCableContext = createContext();
 
+const ws = new WebSocket('wss://messaging-app.fly.dev/cable');
+ws.onopen = () => {
+  console.log('connected');
+};
+ws.onclose = () => {
+  console.log('disconnected');
+};
+ws.onerror = (err) => {
+  console.log('error', err);
+};
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>

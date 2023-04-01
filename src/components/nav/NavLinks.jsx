@@ -19,6 +19,7 @@ const NavLinks = () => {
   const [receivedData, setReceivedData] = useState([false]);
   const [allUsers, setAllUsers] = useState([]);
   const [channel, setChannel] = useState(null);
+  const [currentUserChannel, setCurrentUserChannel] = useState(null);
   const [newChatRoom, setNewChatRoom] = useState(false);
   const [activeChatRoom, setActiveChatRoom] = useState(null);
 
@@ -56,12 +57,6 @@ const NavLinks = () => {
               playSound(audio);
             }
           } else if (data.status === 'created') {
-            setChatRooms((chatRooms) => [...chatRooms, data]);
-
-            if (data.user_id === currentUser.id) {
-              setNewChatRoom(true);
-            }
-
             async function fetchChatRooms() {
               if (data.image !== null) {
                 const response = await data.image.url;
@@ -75,6 +70,9 @@ const NavLinks = () => {
             fetchChatRooms();
           }
         },
+        reject: () => {
+          console.log('rejected');
+        },
       }
     );
 
@@ -82,6 +80,41 @@ const NavLinks = () => {
 
     return () => {
       channel.unsubscribe();
+    };
+  }, [cable.subscriptions, activeChatRoom, currentUser.id, navigate]);
+
+  useEffect(() => {
+    const userChannel = cable.subscriptions.create(
+      { channel: 'UsersChannel', current_user_id: currentUser.id },
+      {
+        received: (data) => {
+          console.log(data);
+
+          setReceivedData(data);
+          if (data.status === 'new_message') {
+            console.log('New message for private user');
+            setRecentChatRoomMessage(data);
+            if (data.user_id !== currentUser.id) {
+              playSound(audio);
+            }
+          } else if (data.status === 'private_room_created') {
+            setChatRooms((chatRooms) => [...chatRooms, data]);
+          } else if (data.status === 'private_room_deleted') {
+            setChatRooms((chatRooms) =>
+              chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
+            );
+          }
+        },
+        reject: () => {
+          console.log('rejected');
+        },
+      }
+    );
+
+    setCurrentUserChannel(userChannel);
+
+    return () => {
+      userChannel.unsubscribe();
     };
   }, [cable.subscriptions, activeChatRoom, currentUser.id, navigate]);
 
@@ -106,20 +139,23 @@ const NavLinks = () => {
 
   useEffect(() => {
     if (receivedData.status === 'deleted') {
+      console.log('receivedData', receivedData);
+
       setChatRooms((chatRooms) =>
         chatRooms.filter((chatRoom) => chatRoom.id !== receivedData.id)
-      );
-
-      console.log(
-        'activeChatRoom', activeChatRoom,
-        'receivedData.id', receivedData.id
       );
 
       if (activeChatRoom === receivedData.id) {
         navigate('/');
       }
     }
-  }, [activeChatRoom, navigate, receivedData.id, receivedData.status]);
+  }, [
+    activeChatRoom,
+    navigate,
+    receivedData,
+    receivedData.id,
+    receivedData.status,
+  ]);
 
   useEffect(() => {
     const chatRooms = JSON.parse(localStorage.getItem('chatRooms'));
@@ -182,6 +218,7 @@ const NavLinks = () => {
   };
 
   const handleDelete = (chatRoomId) => () => {
+    console.log('chatRoomId', chatRoomId);
     channel.send({
       id: chatRoomId,
       status: 'deleted',
@@ -201,21 +238,7 @@ const NavLinks = () => {
   };
 
   const fetchUser = async (userId, username) => {
-    const response = await usersApi.getUser(userId);
-    const data = await response.data;
-
-    console.log(data);
-
-    const privateChat = await {
-      id: data.id,
-      title: username,
-      is_private: data.is_private,
-      status: 'created',
-    };
-
-    setChatRooms((chatRooms) => [...chatRooms, privateChat]);
-
-    return data;
+    await usersApi.getUser(userId);
   };
 
   useEffect(() => {
@@ -225,8 +248,8 @@ const NavLinks = () => {
   return (
     <nav className='sidenav'>
       <div className='sidenav-profile'>
-        {/* <h2> {currentUser.username}</h2>
-        <img src={currentUser.avatar} alt='' className='sidenav-profile__img' /> */}
+        <h2> {currentUser.username}</h2>
+        <img src={currentUser.avatar} alt='' className='sidenav-profile__img' />
       </div>
       <div className='chat-rooms' id='chatRooms'>
         {isLoading ? (

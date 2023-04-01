@@ -12,7 +12,7 @@ import Message from './Message';
 
 function MyChat() {
   const currentUser = useSelector((state) => state.auth.currentUser);
-  const messagesContainer = document.querySelector('.chat-messages');
+  const messagesContainer = document.querySelector('.dashboard-bottom');
 
   const { id } = useParams();
   const navigate = useNavigate();
@@ -39,7 +39,7 @@ function MyChat() {
 
     setChannel(channel);
 
-    fetchMessages(id);
+    fetchMessages(id, 1, 105);
 
     return () => {
       channel.unsubscribe();
@@ -49,11 +49,15 @@ function MyChat() {
   useEffect(() => {
     const resetScroll = () => {
       if (!messagesContainer) return;
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      window.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: 'smooth',
+      });
     };
 
     resetScroll();
-  }, [messagesContainer, messages]);
+  }, [id, messages]);
 
   useEffect(() => {
     if (channel) {
@@ -108,6 +112,7 @@ function MyChat() {
     // ----------------------------
 
     if (receivedData.status === `created`) {
+      console.log(receivedData);
       setMessages((messages) => [...messages, receivedData]);
     } else if (receivedData.status === `deleted`) {
       setMessages((messages) =>
@@ -201,9 +206,9 @@ function MyChat() {
   };
   const [loading, setLoading] = useState(false);
 
-  const fetchMessages = async (id) => {
+  const fetchMessages = async (id, page, perPage) => {
     setLoading(true);
-    const response = await chatRoomsApi.getChatRoomMessages(id);
+    const response = await chatRoomsApi.getChatRoomMessages(id, page, perPage);
     setMessages(response.data);
     setLoading(false);
   };
@@ -293,9 +298,9 @@ function MyChat() {
           <Breathing className='chat-messages' />
         ) : (
           <div className='chat-messages'>
-            {messages.map((message) => (
+            {messages.map((message, index) => (
               <Message
-                key={message.id}
+                key={index}
                 message={message}
                 username={message.username}
                 user_id={message.user_id}

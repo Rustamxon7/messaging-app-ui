@@ -31,11 +31,13 @@ const Message = (props) => {
     <div className='chat-message mine'>
       <div className='chat-message-info'>
         <div className='chat-message-header'>
-          <div className='chat-message-avatar-username'>01:23</div>
+          <div className='chat-message-avatar-username'>
+            {message.created_at.substring(11, 16)}
+          </div>
 
           <div className='chat-message-avatar-time'></div>
         </div>
-        <div className='chat-message-body'>ddfdfdsdffd</div>
+        <div className='chat-message-body'>{message.body}</div>
       </div>
     </div>
   ) : (
