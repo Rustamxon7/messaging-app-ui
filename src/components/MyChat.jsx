@@ -7,7 +7,6 @@ import chatRoomsApi from '../api/chatRooms';
 import ChatNav from './ChatNav';
 import Form from './Form';
 import Loading, { Breathing } from './UI/Loading';
-import audio from '../assets/noti.mp3';
 import Message from './Message';
 
 function MyChat() {

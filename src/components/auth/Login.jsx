@@ -10,6 +10,7 @@ import logo from '../../assets/logo.svg';
 import Errors from '../UI/Errors';
 
 import './Login.scss';
+import Loading from '../UI/Loading';
 
 const Login = (props) => {
   const dispatch = useDispatch();
@@ -86,14 +87,25 @@ const Login = (props) => {
         <Button>Login</Button>
       </form>
 
-      <Link className='login-link' onClick={onSubmitGuest} to='/'>
-        Guest User!
-      </Link>
+      {isLoading ? (
+        <Link className='login-link' onClick={onSubmitGuest} to='/'>
+          Loading
+        </Link>
+      ) : (
+        <>
+          <Link className='login-link' onClick={onSubmitGuest} to='/'>
+            Guest User!
+          </Link>
 
-      <Link className='login-link' to='/signup'>
-        If you don't have an account, <span>create one here</span>
-        <Errors errors={errors} />
-      </Link>
+          <Link className='login-link' to='/signup'>
+            Not a member?, <span>Register now</span>
+            <br />
+            <br />
+
+            <Errors errors={errors} login='login-error' />
+          </Link>
+        </>
+      )}
     </div>
   );
 };

@@ -68,7 +68,10 @@ const SignUp = () => {
             <Button disabled={isLoading}>Sign Up</Button>
           </form>
           <Link className='login-link' to='/login'>
-            If you already memberm, please login here
+            Already have an account?, <span>Login here</span>
+            <br />
+            <br />
+            <br />
             <Errors errors={errors} />
           </Link>
         </>

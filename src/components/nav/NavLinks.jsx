@@ -13,6 +13,7 @@ import Loading from '../UI/Loading';
 import Button from '../UI/Button';
 import ImageComponent from '../UI/Image';
 import audio from '../../assets/noti.mp3';
+import { UseTitle, useTitle } from '../UI/Title';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
@@ -92,7 +93,6 @@ const NavLinks = () => {
 
           setReceivedData(data);
           if (data.status === 'new_message') {
-            console.log('New message for private user');
             setRecentChatRoomMessage(data);
             if (data.user_id !== currentUser.id) {
               playSound(audio);
@@ -120,6 +120,8 @@ const NavLinks = () => {
 
   useEffect(() => {
     if (recentChatRoomMessage.status === 'new_message') {
+      document.title = `(${recentChatRoomMessage.username}): ${recentChatRoomMessage.body}`;
+
       setChatRooms((chatRooms) =>
         chatRooms.map((chatRoom) => {
           if (chatRoom.id === recentChatRoomMessage.chat_room_id) {
@@ -135,6 +137,7 @@ const NavLinks = () => {
         })
       );
     }
+
   }, [recentChatRoomMessage]);
 
   useEffect(() => {

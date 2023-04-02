@@ -27,6 +27,7 @@ CableApp.cable = actionCable.createConsumer(
 export const ActionCableContext = createContext();
 
 const ws = new WebSocket('wss://messaging-app.fly.dev/cable');
+// const ws = new WebSocket('ws://localhost:3000/cable');
 ws.onopen = () => {
   console.log('connected');
 };
