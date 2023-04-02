@@ -21,13 +21,13 @@ TimeAgo.addLocale(ru);
 
 const CableApp = {};
 CableApp.cable = actionCable.createConsumer('ws://localhost:3000/cable');
-// CableApp.cable = actionCable.createConsumer(
-//   'wss://messaging-app.fly.dev/cable'
-// );
+CableApp.cable = actionCable.createConsumer(
+  'wss://messaging-app.fly.dev/cable'
+);
 export const ActionCableContext = createContext();
 
-// const ws = new WebSocket('wss://messaging-app.fly.dev/cable');
-const ws = new WebSocket('ws://localhost:3000/cable');
+const ws = new WebSocket('wss://messaging-app.fly.dev/cable');
+// const ws = new WebSocket('ws://localhost:3000/cable');
 ws.onopen = () => {
   console.log('connected');
 };

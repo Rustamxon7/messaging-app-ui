@@ -4,8 +4,8 @@ import { authFail } from './redux/actions/auth';
 import store from './redux';
 import { history } from './index';
 
-// axios.defaults.baseURL = 'https://messaging-app.fly.dev/api/v1';
-axios.defaults.baseURL = 'http://localhost:3000/api/v1';
+axios.defaults.baseURL = 'https://messaging-app.fly.dev/api/v1';
+// axios.defaults.baseURL = 'http://localhost:3000/api/v1';
 
 axios.interceptors.request.use(
   (config) => {
