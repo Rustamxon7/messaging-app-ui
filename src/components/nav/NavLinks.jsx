@@ -1,32 +1,26 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import usersApi from '../../api/users';
 import chatRoomsApi from '../../api/chatRooms';
-import { BiTrashAlt } from 'react-icons/bi';
 
 import './NavLinks.scss';
 import { ActionCableContext } from '../..';
 import { useSelector } from 'react-redux';
-import ReactTimeAgo from 'react-time-ago';
 import Loading from '../UI/Loading';
 import Button from '../UI/Button';
 import ImageComponent from '../UI/Image';
 import audio from '../../assets/noti.mp3';
-import { UseTitle, useTitle } from '../UI/Title';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
   const [receivedData, setReceivedData] = useState([false]);
   const [allUsers, setAllUsers] = useState([]);
   const [channel, setChannel] = useState(null);
-  const [currentUserChannel, setCurrentUserChannel] = useState(null);
-  const [newChatRoom, setNewChatRoom] = useState(false);
-  const [activeChatRoom, setActiveChatRoom] = useState(null);
+
+  const activeChatRoom = Number(useParams().id);
 
   const [loading, setLoading] = useState(false);
-
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const imgRef = useRef();
   const titleRef = useRef();
@@ -71,9 +65,6 @@ const NavLinks = () => {
             fetchChatRooms();
           }
         },
-        reject: () => {
-          console.log('rejected');
-        },
       }
     );
 
@@ -89,8 +80,6 @@ const NavLinks = () => {
       { channel: 'UsersChannel', current_user_id: currentUser.id },
       {
         received: (data) => {
-          console.log(data);
-
           setReceivedData(data);
           if (data.status === 'new_message') {
             setRecentChatRoomMessage(data);
@@ -105,13 +94,8 @@ const NavLinks = () => {
             );
           }
         },
-        reject: () => {
-          console.log('rejected');
-        },
       }
     );
-
-    setCurrentUserChannel(userChannel);
 
     return () => {
       userChannel.unsubscribe();
@@ -130,6 +114,7 @@ const NavLinks = () => {
               last_message: recentChatRoomMessage.body,
               last_message_at: recentChatRoomMessage.created_at,
               username: recentChatRoomMessage.username,
+              unread_messages_count: chatRoom.unread_messages_count + 1,
             };
           } else {
             return chatRoom;
@@ -137,13 +122,42 @@ const NavLinks = () => {
         })
       );
     }
-
   }, [recentChatRoomMessage]);
 
   useEffect(() => {
-    if (receivedData.status === 'deleted') {
-      console.log('receivedData', receivedData);
+    if (recentChatRoomMessage.chat_room_id === activeChatRoom) {
+      setChatRooms((chatRooms) =>
+        chatRooms.map((chatRoom) => {
+          if (chatRoom.id === recentChatRoomMessage.chat_room_id) {
+            return {
+              ...chatRoom,
+              unread_messages_count: 0,
+            };
+          } else {
+            return chatRoom;
+          }
+        })
+      );
+    }
+  }, [activeChatRoom, recentChatRoomMessage]);
 
+  useEffect(() => {
+    setChatRooms((chatRooms) =>
+      chatRooms.map((chatRoom) => {
+        if (chatRoom.id === activeChatRoom) {
+          return {
+            ...chatRoom,
+            unread_messages_count: 0,
+          };
+        } else {
+          return chatRoom;
+        }
+      })
+    );
+  }, [activeChatRoom]);
+
+  useEffect(() => {
+    if (receivedData.status === 'deleted') {
       setChatRooms((chatRooms) =>
         chatRooms.filter((chatRoom) => chatRoom.id !== receivedData.id)
       );
@@ -172,7 +186,7 @@ const NavLinks = () => {
 
   useEffect(() => {
     fetchChatRooms();
-  }, [newChatRoom]);
+  }, []);
 
   useEffect(() => {
     const resetChatRoomsScroll = () => {
@@ -221,7 +235,6 @@ const NavLinks = () => {
   };
 
   const handleDelete = (chatRoomId) => () => {
-    console.log('chatRoomId', chatRoomId);
     channel.send({
       id: chatRoomId,
       status: 'deleted',
@@ -255,7 +268,7 @@ const NavLinks = () => {
         <img src={currentUser.avatar} alt='' className='sidenav-profile__img' />
       </div>
       <div className='chat-rooms' id='chatRooms'>
-        {isLoading ? (
+        {isLoading || loading ? (
           <Loading />
         ) : (
           chatRooms &&
@@ -266,7 +279,6 @@ const NavLinks = () => {
                 isActive ? 'chat-room active' : 'chat-room'
               }
               key={chatRoom.id}
-              onClick={() => setActiveChatRoom(chatRoom.id)}
             >
               {chatRoom.image ? (
                 <ImageComponent
@@ -294,14 +306,17 @@ const NavLinks = () => {
                     'No messages'
                   )}
                 </p>
-                <p>{chatRoom.messages_count}</p>
               </div>
 
               <p
                 className='chat-room__time'
                 onClick={handleDelete(chatRoom.id)}
               >
-                <BiTrashAlt size={20} />
+                <p>
+                  {chatRoom.unread_messages_count === 0
+                    ? ''
+                    : chatRoom.unread_messages_count}
+                </p>
               </p>
             </NavLink>
           ))
