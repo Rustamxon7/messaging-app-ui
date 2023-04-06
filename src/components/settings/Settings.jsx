@@ -44,9 +44,7 @@ const Settings = () => {
       .then((res) => {
         setResData(res.data);
       })
-      .catch((err) => {
-        console.log(err);
-      })
+      .catch((err) => {})
       .finally(() => {
         setLoading(false);
       });

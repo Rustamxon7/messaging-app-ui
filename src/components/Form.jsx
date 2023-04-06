@@ -8,7 +8,7 @@ function Form(props) {
 
   return (
     <>
-      {!isPrivate && !isUserMember() ? (
+      {!isPrivate && !isUserMember ? (
         <div className='chat__footer' onClick={handleJoin}>
           <div className='chat__footer-container'>
             <p>You are not a member of this chat room</p>

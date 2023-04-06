@@ -1,22 +1,29 @@
 import { useState, useEffect, useContext, useRef } from 'react';
-import { useSelector } from 'react-redux';
-import Moment from 'react-moment';
+import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ActionCableContext } from '..';
 import chatRoomsApi from '../api/chatRooms';
 import ChatNav from './ChatNav';
 import Form from './Form';
-import Loading, { Breathing } from './UI/Loading';
+import { Breathing } from './UI/Loading';
 import Message from './Message';
+import './Dashboard.scss';
+import { getChatRooms, updateChatRoom } from '../redux/actions/chat';
 
 function MyChat() {
-  const currentUser = useSelector((state) => state.auth.currentUser);
   const messagesContainer = document.querySelector('.dashboard-bottom');
 
   const { id } = useParams();
   const navigate = useNavigate();
   const typingUsers = useRef([]);
   const count = useRef(0);
+
+  const currentUser = useSelector((state) => state.auth.currentUser);
+  const reduxChatRoom = useSelector((state) =>
+    state.chatRooms.chatRooms.find((chatRoom) => chatRoom.id === Number(id))
+  );
+
+  const dispatch = useDispatch();
 
   const cable = useContext(ActionCableContext);
   const [channel, setChannel] = useState(null);
@@ -25,9 +32,16 @@ function MyChat() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [receivedData, setReceivedData] = useState({});
-  const [chatRoomUsers, setChatRoomUsers] = useState([]);
   const [currentlyTyping, setCurrentlyTyping] = useState([]);
-  const [currentChatRoom, setCurrentChatRoom] = useState({});
+  const [currentChatRoom, setCurrentChatRoom] = useState(null);
+
+  useEffect(() => {
+    if (reduxChatRoom) {
+      setCurrentChatRoom(reduxChatRoom);
+      setIsPrivate(reduxChatRoom.is_private);
+      setIsJoined(reduxChatRoom.is_member);
+    }
+  }, [reduxChatRoom]);
 
   useEffect(() => {
     const channel = cable.subscriptions.create({
@@ -43,7 +57,7 @@ function MyChat() {
     return () => {
       channel.unsubscribe();
     };
-  }, [id]);
+  }, [cable.subscriptions, currentUser.id, id]);
 
   useEffect(() => {
     const resetScroll = () => {
@@ -56,40 +70,39 @@ function MyChat() {
     };
 
     resetScroll();
-  }, [id, messages]);
+  }, [id, messages, messagesContainer]);
 
   useEffect(() => {
     if (channel) {
       channel.received = (data) => {
         setReceivedData(data);
-
-        if (data.status === `subscribed_to_${id}`) {
-          console.count('subscribed');
-          setIsPrivate(data.is_private);
-          setCurrentChatRoom(data);
-        }
       };
     }
-    // else {
-    //   cable.subscriptions.create(
-    //     {
-    //       channel: 'MessagesChannel',
-    //       id,
-    //     },
-    //     {
-    //       received: (data) => {
-    //         setReceivedData(data);
+  }, [channel, currentUser.id, id]);
 
-    //         console.log(data);
+  useEffect(() => {
+    if (!currentChatRoom) return;
 
-    //         if (data.status === `subscribed_to_${id}`) {
-    //           setIsPrivate(data.is_private);
-    //         }
-    //       },
-    //     }
-    //   );
-    // }
-  }, [cable.subscriptions, channel, id]);
+    if (receivedData.status === `subscribed_to_${id}`) {
+      if (currentChatRoom) {
+        let newChatRoom = {
+          id: currentChatRoom.id,
+          is_member: receivedData.members.includes(currentUser.id),
+          users_count: receivedData.members.length,
+          title: currentChatRoom.title,
+          image: currentChatRoom.image,
+          is_private: currentChatRoom.is_private,
+          members: receivedData.members,
+        };
+
+        setCurrentChatRoom(newChatRoom);
+      }
+
+      setIsJoined(receivedData.is_joined);
+
+      setIsPrivate(receivedData.is_private);
+    }
+  }, [receivedData]);
 
   useEffect(() => {
     if (receivedData.status === 'typing') {
@@ -111,7 +124,6 @@ function MyChat() {
     // ----------------------------
 
     if (receivedData.status === `created`) {
-      console.log(receivedData);
       setMessages((messages) => [...messages, receivedData]);
     } else if (receivedData.status === `deleted`) {
       setMessages((messages) =>
@@ -128,24 +140,6 @@ function MyChat() {
       );
     }
   }, [receivedData]);
-
-  useEffect(() => {
-    if (receivedData.chat_room_users) {
-      if (receivedData.is_private) {
-        const users = receivedData.chat_room_users.filter(
-          (user) => user.id !== currentUser.id
-        );
-        setChatRoomUsers(users);
-      } else {
-        setChatRoomUsers(receivedData.chat_room_users);
-      }
-    }
-  }, [
-    receivedData.chat_room_users,
-    isJoined,
-    receivedData.is_private,
-    currentUser.id,
-  ]);
 
   useEffect(() => {
     if (count.current === 0) {
@@ -186,23 +180,6 @@ function MyChat() {
     return filteredUsers;
   };
 
-  const saveToLocalStorage = (messages) => {
-    const chatRooms = JSON.parse(localStorage.getItem(`chatRooms`));
-
-    if (chatRooms) {
-      const updatedChatRooms = chatRooms.map((chatRoom) => {
-        if (chatRoom.id === messages.chat_room_id) {
-          return {
-            ...chatRoom,
-            last_message: messages,
-          };
-        }
-        return chatRoom;
-      });
-
-      localStorage.setItem(`chatRooms`, JSON.stringify(updatedChatRooms));
-    }
-  };
   const [loading, setLoading] = useState(false);
 
   const fetchMessages = async (id, page, perPage) => {
@@ -224,7 +201,10 @@ function MyChat() {
     e.preventDefault();
 
     const body = e.target.message.value;
-
+    const date = new Date();
+    const dateAsString = date.toISOString();
+    const timezone = date.getTimezoneOffset();
+    const created_at = `${dateAsString} ${timezone}`;
     e.target.message.value = '';
 
     channel.send({
@@ -233,6 +213,7 @@ function MyChat() {
       user_id: currentUser.id,
       status: 'created',
       avatar: currentUser.avatar,
+      created_at,
     });
 
     setInputValue('');
@@ -253,7 +234,13 @@ function MyChat() {
     };
 
     channel.send(data);
-    setIsJoined(true);
+
+    setCurrentChatRoom((chatRoom) => ({
+      ...chatRoom,
+      users_count: chatRoom.users_count + 1,
+      is_member: true,
+      is_joined: true,
+    }));
   };
 
   const handleLeave = async () => {
@@ -266,30 +253,28 @@ function MyChat() {
 
     channel.send(data);
     navigate(`/`);
-  };
 
-  const isUserMember = () => {
-    if (isJoined) return true;
-
-    const user = chatRoomUsers.find((user) => user.id === currentUser.id);
-
-    if (user) {
-      return true;
-    }
+    setCurrentChatRoom((chatRoom) => ({
+      ...chatRoom,
+      users_count: chatRoom.users_count - 1,
+      is_member: false,
+      is_joined: false,
+    }));
   };
 
   return (
     <section className='dashboard'>
-      <ChatNav
-        chatRoom={currentChatRoom}
-        chatRoomUsers={chatRoomUsers}
-        isPrivate={isPrivate}
-        isUserMember={isUserMember}
-        handleJoin={handleJoin}
-        handleLeave={handleLeave}
-        id={id}
-        currentlyTyping={currentlyTyping}
-      />
+      {currentChatRoom && (
+        <ChatNav
+          currentChatRoom={currentChatRoom}
+          isJoined={isJoined}
+          handleJoin={handleJoin}
+          handleLeave={handleLeave}
+          currentlyTyping={currentlyTyping}
+          currentUser={currentUser}
+        />
+      )}
+
       <div></div>
 
       <div className='dashboard-bottom'>
@@ -312,15 +297,19 @@ function MyChat() {
           </div>
         )}
       </div>
+
       <div></div>
-      <Form
-        isPrivate={isPrivate}
-        setIsPrivate={setIsPrivate}
-        isUserMember={isUserMember}
-        setInputValue={setInputValue}
-        inputValue={inputValue}
-        handleSubmit={handleSubmit}
-      />
+
+      {currentChatRoom && (
+        <Form
+          isPrivate={currentChatRoom.is_private}
+          isUserMember={currentChatRoom.is_member}
+          isJoined={isJoined}
+          setInputValue={setInputValue}
+          inputValue={inputValue}
+          handleSubmit={handleSubmit}
+        />
+      )}
     </section>
   );
 }

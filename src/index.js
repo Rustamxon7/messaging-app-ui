@@ -20,7 +20,7 @@ TimeAgo.addDefaultLocale(en);
 TimeAgo.addLocale(ru);
 
 const CableApp = {};
-CableApp.cable = actionCable.createConsumer('ws://localhost:3000/cable');
+// CableApp.cable = actionCable.createConsumer('ws://localhost:3000/cable');
 CableApp.cable = actionCable.createConsumer(
   'wss://messaging-app.fly.dev/cable'
 );

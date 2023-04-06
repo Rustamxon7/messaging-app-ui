@@ -10,6 +10,7 @@ import MyChat from './components/MyChat';
 import NavLinks from './components/nav/NavLinks';
 import Default from './components/UI/Default';
 import Settings from './components/settings/Settings';
+import CreateChatRoom from './components/CreateChatRoom';
 
 const Login = React.lazy(() => import('./components/auth/Login'));
 const SignUp = React.lazy(() => import('./components/auth/SignUp'));
@@ -17,8 +18,6 @@ const SignUp = React.lazy(() => import('./components/auth/SignUp'));
 const PrivateRoute = React.lazy(() =>
   import('./components/utils/PrivateRoute')
 );
-
-const Loading = React.lazy(() => import('./components/UI/Loading'));
 
 function App() {
   const isLoading = useSelector((state) => state.auth.isLoading);
@@ -53,6 +52,16 @@ function App() {
                 />
 
                 <Route path='/settings' element={<Settings />} />
+
+                <Route
+                  path='/chat_rooms/new'
+                  element={
+                    <>
+                      <NavLinks />
+                      <CreateChatRoom />
+                    </>
+                  }
+                />
 
                 <Route path='*' element={<Default />} />
               </Route>

@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import './SearchResult.scss';
 
 const SearchResult = (props) => {
-  console.log(props);
-
   return props.results.length > 0 ? (
     <ul className={`search-result__list`}>
       <li className='search-result__item'>

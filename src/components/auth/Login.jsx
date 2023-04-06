@@ -10,7 +10,6 @@ import logo from '../../assets/logo.svg';
 import Errors from '../UI/Errors';
 
 import './Login.scss';
-import Loading from '../UI/Loading';
 
 const Login = (props) => {
   const dispatch = useDispatch();
@@ -101,7 +100,6 @@ const Login = (props) => {
             Not a member?, <span>Register now</span>
             <br />
             <br />
-
             <Errors errors={errors} login='login-error' />
           </Link>
         </>

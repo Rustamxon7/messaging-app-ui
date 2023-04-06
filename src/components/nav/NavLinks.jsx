@@ -2,15 +2,15 @@ import { useState, useEffect, useContext, useRef } from 'react';
 
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import usersApi from '../../api/users';
-import chatRoomsApi from '../../api/chatRooms';
 
 import './NavLinks.scss';
 import { ActionCableContext } from '../..';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Loading from '../UI/Loading';
 import Button from '../UI/Button';
 import ImageComponent from '../UI/Image';
 import audio from '../../assets/noti.mp3';
+import { getChatRooms } from '../../redux/actions/chat';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
@@ -18,16 +18,18 @@ const NavLinks = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [channel, setChannel] = useState(null);
 
+  const cable = useContext(ActionCableContext);
+  const currentUser = useSelector((state) => state.auth.currentUser);
+  const isLoading = useSelector((state) => state.auth.isLoading);
+  const reduxChatRooms = useSelector((state) => state.chatRooms.chatRooms);
+
   const activeChatRoom = Number(useParams().id);
 
   const [loading, setLoading] = useState(false);
 
-  const imgRef = useRef();
   const titleRef = useRef();
 
-  const cable = useContext(ActionCableContext);
-  const currentUser = useSelector((state) => state.auth.currentUser);
-  const isLoading = useSelector((state) => state.auth.isLoading);
+  const dispatch = useDispatch();
 
   const chatRoomsContainer = document.getElementById('chatRooms');
 
@@ -46,23 +48,20 @@ const NavLinks = () => {
       {
         received: (data) => {
           setReceivedData(data);
+
           if (data.status === 'new_message') {
             setRecentChatRoomMessage(data);
             if (data.user_id !== currentUser.id) {
               playSound(audio);
             }
           } else if (data.status === 'created') {
-            async function fetchChatRooms() {
-              if (data.image !== null) {
-                const response = await data.image.url;
-
-                if (response !== null) {
-                  setChatRooms((chatRooms) => [...chatRooms, data]);
-                }
-              }
+            if (!reduxChatRooms.find((chatRoom) => chatRoom.id === data.id)) {
+              dispatch(getChatRooms());
             }
-
-            fetchChatRooms();
+          } else if (data.status === 'deleted') {
+            setChatRooms((chatRooms) =>
+              chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
+            );
           }
         },
       }
@@ -73,7 +72,7 @@ const NavLinks = () => {
     return () => {
       channel.unsubscribe();
     };
-  }, [cable.subscriptions, activeChatRoom, currentUser.id, navigate]);
+  }, [cable.subscriptions, activeChatRoom, currentUser.id]);
 
   useEffect(() => {
     const userChannel = cable.subscriptions.create(
@@ -83,11 +82,12 @@ const NavLinks = () => {
           setReceivedData(data);
           if (data.status === 'new_message') {
             setRecentChatRoomMessage(data);
+
             if (data.user_id !== currentUser.id) {
               playSound(audio);
             }
           } else if (data.status === 'private_room_created') {
-            setChatRooms((chatRooms) => [...chatRooms, data]);
+            setChatRooms((chatRooms) => chatRooms.unshift(data));
           } else if (data.status === 'private_room_deleted') {
             setChatRooms((chatRooms) =>
               chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
@@ -106,8 +106,8 @@ const NavLinks = () => {
     if (recentChatRoomMessage.status === 'new_message') {
       document.title = `(${recentChatRoomMessage.username}): ${recentChatRoomMessage.body}`;
 
-      setChatRooms((chatRooms) =>
-        chatRooms.map((chatRoom) => {
+      setChatRooms((chatRooms) => {
+        const updatedChatRooms = chatRooms.map((chatRoom) => {
           if (chatRoom.id === recentChatRoomMessage.chat_room_id) {
             return {
               ...chatRoom,
@@ -119,8 +119,18 @@ const NavLinks = () => {
           } else {
             return chatRoom;
           }
-        })
-      );
+        });
+
+        const chatRoom = updatedChatRooms.find(
+          (chatRoom) => chatRoom.id === recentChatRoomMessage.chat_room_id
+        );
+
+        const filteredChatRooms = updatedChatRooms.filter(
+          (chatRoom) => chatRoom.id !== recentChatRoomMessage.chat_room_id
+        );
+
+        return [chatRoom, ...filteredChatRooms];
+      });
     }
   }, [recentChatRoomMessage]);
 
@@ -175,64 +185,35 @@ const NavLinks = () => {
   ]);
 
   useEffect(() => {
-    const chatRooms = JSON.parse(localStorage.getItem('chatRooms'));
-
-    if (chatRooms && chatRooms.length > 0) {
-      setChatRooms(chatRooms);
-    } else {
-      fetchChatRooms();
-    }
-  }, []);
+    dispatch(getChatRooms());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchChatRooms();
+    reduxChatRooms.sort((a, b) => {
+      if (a.created_at < b.created_at) {
+        return -1;
+      } else if (a.created_at > b.created_at) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+
+    setChatRooms(reduxChatRooms);
+  }, [reduxChatRooms]);
+
+  useEffect(() => {
+    fetchAllUsers();
   }, []);
 
   useEffect(() => {
     const resetChatRoomsScroll = () => {
       if (!chatRoomsContainer) return;
-      chatRoomsContainer.scrollTop = chatRoomsContainer.scrollHeight;
+      chatRoomsContainer.scrollTop = 0;
     };
 
     resetChatRoomsScroll();
   }, [chatRoomsContainer, receivedData]);
-
-  const fetchChatRooms = async () => {
-    setLoading(true);
-    const response = await chatRoomsApi.getChatRooms();
-    const data = await response.data;
-    setChatRooms(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    saveToLocalStorage(chatRooms);
-  }, [chatRooms]);
-
-  const saveToLocalStorage = (chatRooms) => {
-    localStorage.setItem('chatRooms', JSON.stringify(chatRooms));
-  };
-
-  const handleChatRoomSubmit = async (e) => {
-    e.preventDefault();
-
-    const formData = new FormData();
-    formData.append('image', imgRef.current.files[0]);
-    formData.append('title', titleRef.current.value);
-
-    const respond = await chatRoomsApi.createChatRoom(formData);
-    const data = await respond.data;
-
-    channel.send({
-      status: 'created',
-      ...data,
-    });
-
-    // clear form and input
-    e.target.reset();
-    imgRef.current.value = '';
-    titleRef.current.value = '';
-  };
 
   const handleDelete = (chatRoomId) => () => {
     channel.send({
@@ -257,28 +238,37 @@ const NavLinks = () => {
     await usersApi.getUser(userId);
   };
 
-  useEffect(() => {
-    fetchAllUsers();
-  }, []);
-
   return (
     <nav className='sidenav'>
-      <div className='sidenav-profile'>
-        <h2> {currentUser.username}</h2>
-        <img src={currentUser.avatar} alt='' className='sidenav-profile__img' />
+      <div to={'/settings'} className='sidenav-profile'>
+        <NavLink to={'/settings'}>
+          <ImageComponent
+            src={currentUser.avatar}
+            className='sidenav-profile__img'
+            chatRoomTitle={currentUser.username}
+          />
+
+          <h2>{currentUser.username}</h2>
+        </NavLink>
+
+        <NavLink to='/chat_rooms/new' className='sidenav-profile__add'>
+          <ion-icon name='add-outline'></ion-icon>
+        </NavLink>
       </div>
+
       <div className='chat-rooms' id='chatRooms'>
         {isLoading || loading ? (
           <Loading />
         ) : (
           chatRooms &&
-          chatRooms.map((chatRoom) => (
+          chatRooms.map((chatRoom, index) => (
             <NavLink
               to={`/chat_rooms/${chatRoom.id}`}
               className={({ isActive }) =>
                 isActive ? 'chat-room active' : 'chat-room'
               }
-              key={chatRoom.id}
+              key={index}
+              // onClick={handleDelete(chatRoom.id)}
             >
               {chatRoom.image ? (
                 <ImageComponent
@@ -303,24 +293,22 @@ const NavLinks = () => {
                       {chatRoom.last_message.substring(0, 5) + '...'}
                     </span>
                   ) : (
-                    'No messages'
+                    ''
                   )}
                 </p>
               </div>
 
-              <p
-                className='chat-room__time'
-                onClick={handleDelete(chatRoom.id)}
-              >
-                <p>
-                  {chatRoom.unread_messages_count === 0
-                    ? ''
-                    : chatRoom.unread_messages_count}
+              {chatRoom.unread_messages_count === 0 ? (
+                ''
+              ) : (
+                <p className='chat-room__time'>
+                  {chatRoom.unread_messages_count}
                 </p>
-              </p>
+              )}
             </NavLink>
           ))
         )}
+
         <div
           className='chat-room'
           style={{
@@ -344,12 +332,9 @@ const NavLinks = () => {
         ))}
       </div>
 
-      <form className='sidenav-search' onSubmit={handleChatRoomSubmit}>
+      <form className='sidenav-search'>
         <input type='text' placeholder='Search' ref={titleRef} />
-        <input type='file' ref={imgRef} />
-        <button type='submit'>
-          <ion-icon name='search-outline'></ion-icon>
-        </button>
+        <ion-icon name='search-outline'></ion-icon>
       </form>
     </nav>
   );
