@@ -268,7 +268,7 @@ const NavLinks = () => {
                 isActive ? 'chat-room active' : 'chat-room'
               }
               key={index}
-              onClick={handleDelete(chatRoom.id)}
+              // onClick={handleDelete(chatRoom.id)}
             >
               {chatRoom.image ? (
                 <ImageComponent
