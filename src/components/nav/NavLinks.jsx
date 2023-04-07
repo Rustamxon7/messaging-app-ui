@@ -11,6 +11,7 @@ import Button from '../UI/Button';
 import ImageComponent from '../UI/Image';
 import audio from '../../assets/noti.mp3';
 import { getChatRooms } from '../../redux/actions/chat';
+import { CiTrash } from 'react-icons/ci';
 
 const NavLinks = () => {
   const [chatRooms, setChatRooms] = useState([]);
@@ -286,7 +287,7 @@ const NavLinks = () => {
 
               <div className='chat-room__info'>
                 <p className='chat-room__name'>
-                  {chatRoom.title || chatRoom.username}
+                  {chatRoom.title || chatRoom.username}{' '}
                 </p>
                 <p className='chat-room__last-message'>
                   {chatRoom.last_message ? (
