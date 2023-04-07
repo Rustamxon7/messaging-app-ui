@@ -92,9 +92,9 @@ const Login = (props) => {
         </Link>
       ) : (
         <>
-          <Link className='login-link' onClick={onSubmitGuest} to='/'>
+          {/* <Link className='login-link' onClick={onSubmitGuest} to='/'>
             Guest User!
-          </Link>
+          </Link> */}
 
           <Link className='login-link' to='/signup'>
             Not a member?, <span>Register now</span>
