@@ -241,7 +241,7 @@ const NavLinks = () => {
   return (
     <nav className='sidenav'>
       <div to={'/settings'} className='sidenav-profile'>
-        <NavLink to={'/settings'}>
+        <NavLink to={'/settings'} className='sidenav-profile__info'>
           <ImageComponent
             src={currentUser.avatar}
             className='sidenav-profile__img'
@@ -268,7 +268,7 @@ const NavLinks = () => {
                 isActive ? 'chat-room active' : 'chat-room'
               }
               key={index}
-              // onClick={handleDelete(chatRoom.id)}
+              onClick={handleDelete(chatRoom.id)}
             >
               {chatRoom.image ? (
                 <ImageComponent
@@ -332,10 +332,10 @@ const NavLinks = () => {
         ))}
       </div>
 
-      <form className='sidenav-search'>
+      {/* <form className='sidenav-search'>
         <input type='text' placeholder='Search' ref={titleRef} />
         <ion-icon name='search-outline'></ion-icon>
-      </form>
+      </form> */}
     </nav>
   );
 };

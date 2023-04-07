@@ -163,6 +163,12 @@
   h2 {
     color: #b3b3b3;
   }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 2.4rem;
+  }
 }
 
 .sidenav-profile__img {
