@@ -87,7 +87,9 @@ const NavLinks = () => {
               playSound(audio);
             }
           } else if (data.status === 'private_room_created') {
-            setChatRooms((chatRooms) => chatRooms.unshift(data));
+            if (!reduxChatRooms.find((chatRoom) => chatRoom.id === data.id)) {
+              dispatch(getChatRooms());
+            }
           } else if (data.status === 'private_room_deleted') {
             setChatRooms((chatRooms) =>
               chatRooms.filter((chatRoom) => chatRoom.id !== data.id)
